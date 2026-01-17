@@ -2,28 +2,28 @@
 import { GoogleGenAI } from "@google/genai";
 
 const SYSTEM_INSTRUCTION = `
-あなたは業務フロー分析の専門家です。
-ユーザーから提供される業務手順（文章、箇条書き、または現場のメモ書き）を解析し、論理的なMermaid形式のフローチャート（graph TD）を生成してください。
+あなたは業務フロー分析の高度な専門家です。
+ユーザーから提供される業務手順メモ（番号、記号、現場用語が含まれる断片的な記述）を解析し、論理的なMermaid形式のフローチャート（graph TD）を生成してください。
 
 【解析のルール】
-1. 入力が「1-1 作業場所 内容」のような短縮形式であっても、それぞれのステップをノードとして抽出してください。
-2. 「〜の場合」や条件分岐を示唆する記述（例：CP神戸の場合 10-1）があれば、必ず菱形ノード {} を使って分岐を表現してください。
-3. 処理の順序（1-1 → 2-1 など）を番号から推測し、矢印でつなげてください。
-4. 「終了」や「完了」という言葉があれば、フローの終端として扱ってください。
+1. 「1-1」「3-1」などの番号はステップの順序やIDとして扱ってください。
+2. 「〜の場合」「〜なら」といった記述や、複数の選択肢（例：CP神戸、CP中山、CP東鉄）が示されている場合は、必ず菱形ノード { } を使って条件分岐を表現してください。
+3. 「終了」「現品」「完了」などの言葉は、フローの終端ノードとして適切に配置してください。
+4. 現場のメモ書きから、暗黙的な前後のつながりを論理的に推論して矢印でつなげてください。
 
 【Mermaid出力ルール】
 1. 出力は純粋なMermaid記法（graph TDから始まるコード）のみとしてください。
-2. 日本語ラベルを使用し、ノードIDは英数字（A, B, C...）にしてください。
+2. ノードのテキストには日本語を使用し、IDは英数字（A, B, C...）にしてください。
 3. コードブロック（\`\`\`mermaid）は含めず、プレーンテキストで出力してください。
-4. 複雑な条件分岐も可能な限り網羅してください。
 `;
 
 export const generateFlowchart = async (text: string): Promise<string> => {
-  // Vercelで設定されている環境変数名を柔軟に取得
-  const apiKey = process.env.API_KEY || (process.env as any).GOOGLE_GENERATIVE_AI_API_KEY;
+  // 環境変数からAPIキーを取得
+  // Vercelなどの環境でブラウザに注入される process.env.API_KEY を優先
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    throw new Error('API_KEYが検出できませんでした。Vercelの環境変数設定を確認し、変更後は必ず「Redeploy」を行ってください。');
+    throw new Error('API_KEYが見つかりません。Vercelの環境変数で「Name」を「API_KEY」として設定し、保存後に必ず「Redeploy」を行ってください。');
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -34,18 +34,18 @@ export const generateFlowchart = async (text: string): Promise<string> => {
       contents: text,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.1,
+        temperature: 0.2, // 構造化データのため低めの温度設定
       },
     });
 
     const result = response.text || '';
+    // 不要なコードブロック記法を除去
     return result.replace(/```mermaid\n?|```/g, '').trim();
   } catch (error: any) {
-    console.error('Error generating flowchart:', error);
-    // APIキーの不備に関する具体的なエラーメッセージ
-    if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('403')) {
-      throw new Error('APIキーが無効です。Google AI Studioで正しいキーが作成されているか確認してください。');
+    console.error('Gemini API Error:', error);
+    if (error.message?.includes('API_KEY_INVALID')) {
+      throw new Error('設定されたAPIキーが無効です。Google AI Studioで新しいキーを作成し、Vercelに設定し直してください。');
     }
-    throw new Error('フローチャートの生成中にエラーが発生しました。時間を置いて再度お試しください。');
+    throw new Error('AIによる解析に失敗しました。VercelのEnvironment VariablesでAPI_KEYが正しく設定されているか確認し、再デプロイしてください。');
   }
 };
