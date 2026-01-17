@@ -1,0 +1,5 @@
+{
+  "name": "Flowchart AI Generator",
+  "description": "自然な日本語の文章から、業務フローチャート（Mermaid形式）を自動生成する業務効率化ツールです。Gemini 3 Flash を活用して、処理ステップ、条件分岐、並行処理を正確に抽出・可視化します。",
+  "requestFramePermissions": []
+}
