@@ -19,11 +19,11 @@ const SYSTEM_INSTRUCTION = `
 `;
 
 export const generateFlowchart = async (text: string): Promise<string> => {
-  // システムによって注入される process.env.API_KEY を直接使用
-  const apiKey = process.env.API_KEY;
+  // Vercelで設定されている環境変数名を柔軟に取得
+  const apiKey = process.env.API_KEY || (process.env as any).GOOGLE_GENERATIVE_AI_API_KEY;
 
   if (!apiKey) {
-    throw new Error('API_KEYが検出できませんでした。Vercelの環境変数設定が完了しているか、再デプロイされているか確認してください。');
+    throw new Error('API_KEYが検出できませんでした。Vercelの環境変数設定を確認し、変更後は必ず「Redeploy」を行ってください。');
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -34,15 +34,18 @@ export const generateFlowchart = async (text: string): Promise<string> => {
       contents: text,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.1, // 構造化データ抽出のためより厳格に
+        temperature: 0.1,
       },
     });
 
     const result = response.text || '';
-    // もしAIがコードブロックを付けてしまった場合のガード
     return result.replace(/```mermaid\n?|```/g, '').trim();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating flowchart:', error);
-    throw new Error('フローチャートの生成中にエラーが発生しました。入力内容が長すぎるか、APIキーの権限を確認してください。');
+    // APIキーの不備に関する具体的なエラーメッセージ
+    if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('403')) {
+      throw new Error('APIキーが無効です。Google AI Studioで正しいキーが作成されているか確認してください。');
+    }
+    throw new Error('フローチャートの生成中にエラーが発生しました。時間を置いて再度お試しください。');
   }
 };
