@@ -1,8 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const SYSTEM_INSTRUCTION = `
 あなたは業務効率化を支援するプロのビジネスアナリストおよびMermaid.jsのエキスパートです。
 ユーザーが提供する「日本語の業務フロー説明」を解析し、論理的に正しいMermaid形式のフローチャート（graph TD）を生成してください。
@@ -19,22 +17,29 @@ const SYSTEM_INSTRUCTION = `
 `;
 
 export const generateFlowchart = async (text: string): Promise<string> => {
+  // 実行時にAPIキーを取得（Vercel等の環境変数またはwindowオブジェクトから）
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    throw new Error('API_KEYが設定されていません。Vercelの環境変数設定を確認してください。');
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: text,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.2, // 低温で一貫性を保つ
+        temperature: 0.2,
       },
     });
 
     const result = response.text || '';
-    
-    // 不要なマークダウンバックティックスを取り除く
     return result.replace(/```mermaid\n?|```/g, '').trim();
   } catch (error) {
     console.error('Error generating flowchart:', error);
-    throw new Error('フローチャートの生成に失敗しました。');
+    throw new Error('フローチャートの生成に失敗しました。APIキーが無効か、制限に達している可能性があります。');
   }
 };
