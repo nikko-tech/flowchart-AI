@@ -62,15 +62,44 @@ const MermaidViewer: React.FC<MermaidViewerProps> = ({ chartCode }) => {
         throw new Error('SVG element not found');
       }
 
-      // SVGのサイズを取得（スケールアップで高解像度に）
+      // SVGのサイズを取得（viewBox、width/height属性、style属性から）
       const scale = 2;
-      const width = parseFloat(svgElement.getAttribute('width') || '800') * scale;
-      const height = parseFloat(svgElement.getAttribute('height') || '600') * scale;
+      const padding = 20; // 余白を追加
+      
+      let width: number;
+      let height: number;
+      
+      // viewBoxからサイズを取得（最も正確）
+      const viewBox = svgElement.getAttribute('viewBox');
+      if (viewBox) {
+        const parts = viewBox.split(/\s+|,/).map(Number);
+        if (parts.length === 4) {
+          width = parts[2];
+          height = parts[3];
+        } else {
+          width = 800;
+          height = 600;
+        }
+      } else {
+        // width/height属性から取得（単位を除去）
+        const widthAttr = svgElement.getAttribute('width') || svgElement.style.width || '800';
+        const heightAttr = svgElement.getAttribute('height') || svgElement.style.height || '600';
+        width = parseFloat(widthAttr.replace(/[^0-9.]/g, '')) || 800;
+        height = parseFloat(heightAttr.replace(/[^0-9.]/g, '')) || 600;
+      }
+
+      // パディングを追加
+      const finalWidth = (width + padding * 2) * scale;
+      const finalHeight = (height + padding * 2) * scale;
 
       // SVGにxmlns属性を追加（必要な場合）
       if (!svgElement.getAttribute('xmlns')) {
         svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       }
+      
+      // SVGのサイズを明示的に設定
+      svgElement.setAttribute('width', String(width));
+      svgElement.setAttribute('height', String(height));
 
       // フォントをシステムフォントに置換（外部リソースを使わない）
       const styleElement = document.createElementNS('http://www.w3.org/2000/svg', 'style');
@@ -89,15 +118,16 @@ const MermaidViewer: React.FC<MermaidViewerProps> = ({ chartCode }) => {
       img.onload = () => {
         // Canvasに描画（背景透過）
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = finalWidth;
+        canvas.height = finalHeight;
         const ctx = canvas.getContext('2d');
         
         if (ctx) {
           // 背景を透明に（デフォルトで透明）
-          ctx.clearRect(0, 0, width, height);
+          ctx.clearRect(0, 0, finalWidth, finalHeight);
+          // パディング分だけオフセットして描画
           ctx.scale(scale, scale);
-          ctx.drawImage(img, 0, 0);
+          ctx.drawImage(img, padding, padding);
 
           // PNGとしてダウンロード
           canvas.toBlob((blob) => {
