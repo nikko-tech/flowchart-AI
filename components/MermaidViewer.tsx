@@ -72,18 +72,17 @@ const MermaidViewer: React.FC<MermaidViewerProps> = ({ chartCode }) => {
         svgElement.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
       }
 
-      // スタイルを埋め込む（フォント対応）
+      // フォントをシステムフォントに置換（外部リソースを使わない）
       const styleElement = document.createElementNS('http://www.w3.org/2000/svg', 'style');
       styleElement.textContent = `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
-        * { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif; }
       `;
       svgElement.insertBefore(styleElement, svgElement.firstChild);
 
-      // SVGをBlobに変換
+      // SVGをBase64 Data URLに変換（CORSを回避）
       const svgData = new XMLSerializer().serializeToString(svgElement);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
+      const base64Data = btoa(unescape(encodeURIComponent(svgData)));
+      const dataUrl = `data:image/svg+xml;base64,${base64Data}`;
 
       // Imageにロード
       const img = new Image();
@@ -115,8 +114,6 @@ const MermaidViewer: React.FC<MermaidViewerProps> = ({ chartCode }) => {
             setIsDownloading(false);
           }, 'image/png');
         }
-        
-        URL.revokeObjectURL(url);
       };
 
       img.onerror = () => {
@@ -125,7 +122,7 @@ const MermaidViewer: React.FC<MermaidViewerProps> = ({ chartCode }) => {
         alert('画像の生成に失敗しました。');
       };
 
-      img.src = url;
+      img.src = dataUrl;
     } catch (err) {
       console.error('Download error:', err);
       setIsDownloading(false);
